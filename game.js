@@ -149,16 +149,16 @@ function update() {
 
 
     // 2. Mouvement Qix
-    // --- 2. ENNEMIS (Qix) ---
     enemies.forEach(qix => {
-        // A. Logique de Cible Aléatoire (Comportement erratique)
         qix.changeTimer--;
         if (qix.changeTimer <= 0) {
-            // On choisit une nouvelle destination au hasard dans la grille
+            // Cible aléatoire inchangée
             qix.targetX = Math.random() * (COLS - 2) + 1;
             qix.targetY = Math.random() * (ROWS - 2) + 1;
-            // La cible change dans un délai aléatoire (entre 0.5s et 1.5s)
-            qix.changeTimer = 30 + Math.random() * 60;
+
+            // MODIF 1 : Délai plus long (60 à 180 frames = 1s à 3s)
+            // Avant c'était 30-90. Le Qix sera moins "nerveux".
+            qix.changeTimer = 60 + Math.random() * 120;
         }
 
         // B. Accélération vers la cible (Steering force)
@@ -196,13 +196,12 @@ function update() {
         }
 
         // Vérification Y
-        let ny = qix.y + qix.vy;
-        let cny = Math.floor(ny), cnx = Math.floor(qix.x);
+        let cny = Math.floor(nextY), cnx = Math.floor(qix.x);
         if (cny <= 0 || cny >= ROWS - 1 || (grid[cny] && grid[cny][cnx] === 1)) {
             qix.vy *= -1; // Rebond simple
             qix.changeTimer = 0; // Force changement de cible
         } else {
-            qix.y = ny;
+            qix.y = nextY;
         }
 
         // F. Collisions (Game Over)
@@ -214,11 +213,13 @@ function update() {
 
         // 2. Collision directe avec les JOUEURS
         players.forEach(p => {
-            // Distance de collision un peu plus permissive (2.0)
-            if (Math.hypot(p.x - qix.x, p.y - qix.y) < 2.0) {
+            // On augmente la distance de collision car le Qix est visuellement plus gros (rayon ~12px)
+            // 1 unité grille = 5px. Donc une distance de 3.0 = 15px.
+            if (Math.hypot(p.x - qix.x, p.y - qix.y) < 3.0) {
                 gameOver(`Le Qix a désintégré le joueur ${p.id} !`);
             }
         });
+
 
         // G. Effet visuel (Traînée)
         qix.history.push({ x: qix.x, y: qix.y, angle: Math.atan2(qix.vy, qix.vx) });
@@ -246,8 +247,11 @@ function update() {
 
         if (sparx.spawnTimer === 0) {
             players.forEach(p => {
-                if (Math.hypot(p.x - sparx.x, p.y - sparx.y) < 1.2) gameOver("Touché par un Sparx !");
-            });
+                // Le Sparx fait aussi environ 14px de large.
+                if (Math.hypot(p.x - sparx.x, p.y - sparx.y) < 2.5) {
+                    gameOver("Touché par un Sparx !");
+                }
+            })
         }
     });
 }
@@ -431,18 +435,83 @@ function draw() {
         }
     }
 
+    // --- DESSIN DES JOUEURS (Carrés avec bordure blanche) ---
     players.forEach(p => {
-        ctx.fillStyle = p.color; ctx.fillRect(p.x * CELL_SIZE - 1, p.y * CELL_SIZE - 1, 7, 7);
+        let size = 12; // Taille fixe plus grosse que la grille (5px)
+        let drawX = p.x * CELL_SIZE - (size / 2) + (CELL_SIZE / 2);
+        let drawY = p.y * CELL_SIZE - (size / 2) + (CELL_SIZE / 2);
+
+        ctx.shadowBlur = 10; ctx.shadowColor = "black"; // Ombre pour le contraste
+
+        ctx.fillStyle = p.color;
+        ctx.fillRect(drawX, drawY, size, size);
+
+        // Contour blanc pour détacher du fond
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(drawX, drawY, size, size);
+
+        ctx.shadowBlur = 0; // Reset
     });
 
+    // --- DESSIN DU QIX (Grandes bulles néon) ---
     enemies.forEach(qix => {
-        ctx.strokeStyle = "cyan"; ctx.beginPath();
-        ctx.arc(qix.x * CELL_SIZE, qix.y * CELL_SIZE, 5, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur = 15; ctx.shadowColor = "cyan";
+
+        // Traînée (History)
+        qix.history.forEach((pos, i) => {
+            ctx.globalAlpha = (i / qix.history.length) * 0.5; // Dégradé
+            ctx.fillStyle = "cyan";
+            ctx.beginPath();
+            // Traînée plus large
+            ctx.arc(pos.x * CELL_SIZE, pos.y * CELL_SIZE, 6, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+
+        // Tête du Qix (Gros cercle avec contour)
+        ctx.beginPath();
+        let r = 10 + Math.sin(Date.now() / 200) * 2; // Pulsation (10px à 12px de rayon)
+        ctx.arc(qix.x * CELL_SIZE, qix.y * CELL_SIZE, r, 0, Math.PI * 2);
+
+        ctx.fillStyle = "rgba(0, 255, 255, 0.6)"; // Intérieur semi-transparent
+        ctx.fill();
+
+        ctx.strokeStyle = "white"; // Contour blanc solide
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
     });
 
-    sparxes.forEach(s => {
-        ctx.fillStyle = s.spawnTimer > 0 ? "rgba(255,0,0,0.3)" : "red";
-        ctx.fillRect(s.x * CELL_SIZE, s.y * CELL_SIZE, 6, 6);
+    // --- DESSIN DES SPARX (Losanges rotatifs rouges) ---
+    sparxes.forEach(sparx => {
+        let size = 14;
+        let drawX = sparx.x * CELL_SIZE + (CELL_SIZE / 2);
+        let drawY = sparx.y * CELL_SIZE + (CELL_SIZE / 2);
+
+        ctx.save();
+        ctx.translate(drawX, drawY);
+        ctx.rotate(Date.now() * 0.005); // Rotation continue
+
+        ctx.shadowBlur = 10; ctx.shadowColor = "red";
+
+        ctx.fillStyle = sparx.spawnTimer > 0 ? "rgba(255, 100, 100, 0.5)" : "#ff0000";
+        ctx.beginPath();
+        ctx.moveTo(0, -size / 2);
+        ctx.lineTo(size / 2, 0);
+        ctx.lineTo(0, size / 2);
+        ctx.lineTo(-size / 2, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Contour blanc
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+        ctx.shadowBlur = 0;
     });
 }
 
