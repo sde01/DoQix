@@ -3,6 +3,8 @@ const ctx = canvas.getContext('2d');
 const percentEl = document.getElementById('percent');
 const levelEl = document.getElementById('level');
 const scoreEl = document.getElementById('scoreVal');
+const livesEl = document.getElementById('livesVal'); // <--- NOUVEAU
+
 
 const ROWS = 80;
 const COLS = 120;
@@ -29,6 +31,7 @@ let players = [];
 let enemies = [];
 let sparxes = [];
 let level = 1;
+let lives = 3; 
 let isGameOver = false;
 let score = 0;
 let isLevelComplete = false;
@@ -38,10 +41,12 @@ const bgCtx = bgCanvas.getContext('2d');
 bgCanvas.width = canvas.width;
 bgCanvas.height = canvas.height;
 
-// --- LOGIQUE DE DÉMARRAGE ---
 function startGame(mode) {
     playerCount = mode;
     gameStarted = true;
+    lives = 3; // <--- On commence avec 3 vies
+    livesEl.innerText = lives;
+
     document.getElementById('menu-overlay').style.display = 'none';
 
     players = [];
@@ -49,8 +54,54 @@ function startGame(mode) {
     if (playerCount === 2) {
         players.push({ x: COLS - 1, y: ROWS - 1, dx: 0, dy: 0, isDrawing: false, color: 'cyan', id: 2 });
     }
+
     initLevel(1);
 }
+
+function resetPositions() {
+    // 1. Nettoyage des traits en cours (les 2 deviennent des 0)
+    // Sinon, au respawn, il resterait des traits rouges fantômes
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(grid[r][c] === 2) grid[r][c] = 0;
+        }
+    }
+
+    // 2. Reset Joueurs
+    players.forEach(p => {
+        p.dx = 0; p.dy = 0; p.isDrawing = false;
+    });
+    
+    players[0].x = 0; 
+    players[0].y = ROWS - 1;
+
+    if (playerCount === 2) {
+        players[1].x = COLS - 1; 
+        players[1].y = ROWS - 1;
+    }
+
+    // 3. Reset Qix (Ennemis)
+    // On les remet au centre avec une nouvelle cible
+    enemies.forEach(qix => {
+        qix.x = COLS / 2;
+        qix.y = ROWS / 2;
+        qix.vx = 0; qix.vy = 0;
+        qix.targetX = Math.random() * COLS;
+        qix.targetY = Math.random() * ROWS;
+        qix.changeTimer = 0;
+        qix.history = []; // On vide la traînée visuelle
+    });
+
+    // 4. Reset Sparx (En haut)
+    let sparxCount = sparxes.length; // On garde le même nombre
+    sparxes.forEach((sparx, i) => {
+        sparx.x = Math.floor((COLS / (sparxCount + 1)) * (i + 1));
+        sparx.y = 0;
+        sparx.lastX = -1; sparx.lastY = -1;
+        sparx.spawnTimer = 60; // On redonne l'invulnérabilité temporaire !
+    });
+}
+
 
 function initLevel(lvl) {
     level = lvl;
@@ -66,6 +117,8 @@ function initLevel(lvl) {
         scoreEl.innerText = "0";
     }
 
+
+    
     // 1. Reset Grille
     grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
     for (let r = 0; r < ROWS; r++) { grid[r][0] = 1; grid[r][COLS - 1] = 1; }
@@ -111,6 +164,8 @@ function initLevel(lvl) {
     // On attend que l'image soit chargée pour dessiner les bordures initiales dans le buffer
     if (imageLoaded) updateBuffer(); 
     else bgImageSharp.onload = () => { imageLoaded = true; updateBuffer(); };
+
+    resetPositions(); 
 }
 
 function updateBuffer() {
@@ -415,12 +470,31 @@ function findNearestEdge(x, y) {
 }
 
 function gameOver(msg) {
-    isGameOver = true;
-    setTimeout(() => {
-        alert(msg);
-        gameStarted = false;
-        document.getElementById('menu-overlay').style.display = 'flex';
-    }, 10);
+    if (isGameOver) return; // Évite les double-morts simultanées
+    
+    lives--; // On perd une vie
+    livesEl.innerText = lives;
+
+    if (lives > 0) {
+        // --- CAS 1 : IL RESTE DES VIES ---
+        // On met une petite pause, on affiche le message, et on respawn
+        isGameOver = true; // Pause temporaire
+        
+        setTimeout(() => {
+            alert(msg + "\n\nVies restantes : " + lives);
+            isGameOver = false; // On relance le jeu
+            resetPositions();   // On remet tout le monde en place MAIS on garde la grille
+        }, 100);
+
+    } else {
+        // --- CAS 2 : GAME OVER TOTAL ---
+        isGameOver = true;
+        setTimeout(() => {
+            alert(msg + "\n\nGAME OVER FINAL\nScore: " + score);
+            gameStarted = false;
+            document.getElementById('menu-overlay').style.display = 'flex';
+        }, 100);
+    }
 }
 
 function rescueTrappedPlayers() {
