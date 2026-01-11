@@ -32,6 +32,11 @@ let level = 1;
 let isGameOver = false;
 let score = 0;
 let isLevelComplete = false;
+// Canvas hors-écran pour stocker l'image révélée
+const bgCanvas = document.createElement('canvas');
+const bgCtx = bgCanvas.getContext('2d');
+bgCanvas.width = canvas.width;
+bgCanvas.height = canvas.height;
 
 // --- LOGIQUE DE DÉMARRAGE ---
 function startGame(mode) {
@@ -98,6 +103,35 @@ function initLevel(lvl) {
             lastX: -1, lastY: -1,
             spawnTimer: 60 // Protection 1 seconde
         });
+    }
+
+    // --- AJOUT : Initialisation du Buffer ---
+    bgCtx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // On attend que l'image soit chargée pour dessiner les bordures initiales dans le buffer
+    if (imageLoaded) updateBuffer(); 
+    else bgImageSharp.onload = () => { imageLoaded = true; updateBuffer(); };
+}
+
+function updateBuffer() {
+    if (!imageLoaded) return;
+    
+    let srcW = bgImageSharp.width / COLS;
+    let srcH = bgImageSharp.height / ROWS;
+
+    // On parcourt toute la grille pour "imprimer" les zones conquises (1) sur le buffer
+    // Note : Pour optimiser encore plus, on pourrait ne dessiner que les NOUVELLES zones,
+    // mais redessiner les murs statiques est déjà très rapide comparé à le faire 60fps.
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] === 1) {
+                // On dessine sur bgCtx (le tampon), pas ctx (l'écran)
+                bgCtx.drawImage(bgImageSharp, 
+                    c * srcW, r * srcH, srcW, srcH, 
+                    c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE
+                );
+            }
+        }
     }
 }
 
@@ -337,6 +371,9 @@ function finalizeConquest() {
     rescueTrappedPlayers();
     players.forEach(pl => pl.isDrawing = false);
 
+    // --- AJOUT : On met à jour l'image statique ---
+    updateBuffer();
+
     // --- CALCUL SCORE ---
     let points = newlyConqueredCount * newlyConqueredCount;
     score += points;
@@ -414,23 +451,24 @@ function draw() {
     if (!gameStarted) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Si le niveau est fini (victoire)
     if (isLevelComplete && imageLoaded) {
         ctx.drawImage(bgImageSharp, 0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "white"; ctx.font = "40px Courier";
-        ctx.fillText("NIVEAU TERMINÉ !", 150, 200);
+        // ... texte bravo ...
         return;
     }
 
-    if (imageLoaded) {
-        let srcW = bgImageSharp.width / COLS;
-        let srcH = bgImageSharp.height / ROWS;
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                if (grid[r][c] === 1) {
-                    ctx.drawImage(bgImageSharp, c * srcW, r * srcH, srcW, srcH, c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-                } else if (grid[r][c] === 2) {
-                    ctx.fillStyle = 'red'; ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-                }
+    // --- OPTIMISATION MAJEURE ---
+    // Au lieu de la double boucle for, on dessine juste le buffer
+    ctx.drawImage(bgCanvas, 0, 0);
+
+    // On dessine juste les TRAITS ROUGES (en cours) par dessus, car eux bougent
+    // Ça reste une boucle, mais elle est très légère car il y a peu de "2"
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (grid[r][c] === 2) {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
             }
         }
     }
