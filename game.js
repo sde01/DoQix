@@ -44,8 +44,13 @@ bgCanvas.height = canvas.height;
 function startGame(mode) {
     playerCount = mode;
     gameStarted = true;
-    lives = 3; // <--- On commence avec 3 vies
+    lives = 3; 
     livesEl.innerText = lives;
+    
+    // --- MODIFICATION ICI ---
+    score = 0; // On remet le score à 0 seulement au tout début du jeu complet
+    scoreEl.innerText = "0";
+    // ------------------------
 
     document.getElementById('menu-overlay').style.display = 'none';
 
@@ -58,49 +63,49 @@ function startGame(mode) {
     initLevel(1);
 }
 
-function resetPositions() {
-    // 1. Nettoyage des traits en cours (les 2 deviennent des 0)
-    // Sinon, au respawn, il resterait des traits rouges fantômes
-    for(let r=0; r<ROWS; r++) {
-        for(let c=0; c<COLS; c++) {
-            if(grid[r][c] === 2) grid[r][c] = 0;
-        }
-    }
-
-    // 2. Reset Joueurs
-    players.forEach(p => {
-        p.dx = 0; p.dy = 0; p.isDrawing = false;
-    });
-    
-    players[0].x = 0; 
-    players[0].y = ROWS - 1;
-
-    if (playerCount === 2) {
-        players[1].x = COLS - 1; 
-        players[1].y = ROWS - 1;
-    }
-
-    // 3. Reset Qix (Ennemis)
-    // On les remet au centre avec une nouvelle cible
-    enemies.forEach(qix => {
-        qix.x = COLS / 2;
-        qix.y = ROWS / 2;
-        qix.vx = 0; qix.vy = 0;
-        qix.targetX = Math.random() * COLS;
-        qix.targetY = Math.random() * ROWS;
-        qix.changeTimer = 0;
-        qix.history = []; // On vide la traînée visuelle
-    });
-
-    // 4. Reset Sparx (En haut)
-    let sparxCount = sparxes.length; // On garde le même nombre
-    sparxes.forEach((sparx, i) => {
-        sparx.x = Math.floor((COLS / (sparxCount + 1)) * (i + 1));
-        sparx.y = 0;
-        sparx.lastX = -1; sparx.lastY = -1;
-        sparx.spawnTimer = 60; // On redonne l'invulnérabilité temporaire !
-    });
-}
+//function resetPositions() {
+//    // 1. Nettoyage des traits en cours (les 2 deviennent des 0)
+//    // Sinon, au respawn, il resterait des traits rouges fantômes
+//    for(let r=0; r<ROWS; r++) {
+//        for(let c=0; c<COLS; c++) {
+//            if(grid[r][c] === 2) grid[r][c] = 0;
+//        }
+//    }
+//
+//    // 2. Reset Joueurs
+//    players.forEach(p => {
+//        p.dx = 0; p.dy = 0; p.isDrawing = false;
+//    });
+//    
+//    players[0].x = 0; 
+//    players[0].y = ROWS - 1;
+//
+//    if (playerCount === 2) {
+//        players[1].x = COLS - 1; 
+//        players[1].y = ROWS - 1;
+//    }
+//
+//    // 3. Reset Qix (Ennemis)
+//    // On les remet au centre avec une nouvelle cible
+//    enemies.forEach(qix => {
+//        qix.x = COLS / 2;
+//        qix.y = ROWS / 2;
+//        qix.vx = 0; qix.vy = 0;
+//        qix.targetX = Math.random() * COLS;
+//        qix.targetY = Math.random() * ROWS;
+//        qix.changeTimer = 0;
+//        qix.history = []; // On vide la traînée visuelle
+//    });
+//
+//    // 4. Reset Sparx (En haut)
+//    let sparxCount = sparxes.length; // On garde le même nombre
+//    sparxes.forEach((sparx, i) => {
+//        sparx.x = Math.floor((COLS / (sparxCount + 1)) * (i + 1));
+//        sparx.y = 0;
+//        sparx.lastX = -1; sparx.lastY = -1;
+//        sparx.spawnTimer = 60; // On redonne l'invulnérabilité temporaire !
+//    });
+//}
 
 
 function initLevel(lvl) {
@@ -112,10 +117,10 @@ function initLevel(lvl) {
 
     setLevelImage(level);
 
-    if (level === 1) {
-        score = 0;
-        scoreEl.innerText = "0";
-    }
+//    if (level === 1) {
+//        score = 0;
+//        scoreEl.innerText = "0";
+//    }
 
 
     
@@ -470,20 +475,26 @@ function findNearestEdge(x, y) {
 }
 
 function gameOver(msg) {
-    if (isGameOver) return; // Évite les double-morts simultanées
+    if (isGameOver) return;
     
-    lives--; // On perd une vie
+    lives--; 
     livesEl.innerText = lives;
 
     if (lives > 0) {
         // --- CAS 1 : IL RESTE DES VIES ---
-        // On met une petite pause, on affiche le message, et on respawn
-        isGameOver = true; // Pause temporaire
+        isGameOver = true; 
         
         setTimeout(() => {
-            alert(msg + "\n\nVies restantes : " + lives);
-            isGameOver = false; // On relance le jeu
-            resetPositions();   // On remet tout le monde en place MAIS on garde la grille
+            alert(msg + "\n\nVies restantes : " + lives + "\nLe niveau va recommencer.");
+            isGameOver = false;
+            
+            // --- MODIFICATION ICI ---
+            // On relance l'initialisation complète du niveau actuel
+            // Cela efface la grille (progression perdue sur ce niveau) 
+            // mais garde le score global.
+            initLevel(level); 
+            // ------------------------
+            
         }, 100);
 
     } else {
