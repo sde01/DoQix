@@ -136,14 +136,50 @@ function initLevel(lvl) {
     }
     players.forEach(p => { p.dx = 0; p.dy = 0; p.isDrawing = false; });
 
-    // 4. Création Qix (CORRIGÉ)
-    let qixCount = 1 + Math.floor((level - 1) / 2);
+    // 4. Création Qix (Mixte Bleu / Jaune)
     enemies = [];
-    for (let i = 0; i < qixCount; i++) {
+
+    // Calcul du nombre de Qix selon votre règle
+    let yellowCount = 0;
+    let blueCount = 0;
+
+    if (level < 3) {
+        // Niveau 1 et 2 : Que des bleus (1 au niv 1, 2 au niv 2)
+        blueCount = level;
+    } else {
+        // À partir du niveau 3 : on alterne
+        // Niv 3 (base) : 1 Bleu, 1 Jaune
+        // Niv 4 : +1 Bleu -> 2 Bleu, 1 Jaune
+        // Niv 5 : +1 Jaune -> 2 Bleu, 2 Jaune
+        let progress = level - 2; // 1 au niv 3, 2 au niv 4...
+        yellowCount = Math.ceil(progress / 2);
+        blueCount = 1 + Math.floor(progress / 2);
+    }
+
+    // --- Génération des Qix BLEUS (Classiques - Lignes droites) ---
+    for (let i = 0; i < blueCount; i++) {
+        // Vitesse constante mais direction aléatoire
+        let angle = Math.random() * Math.PI * 2;
+        let speed = 0.7 + (level * 0.05); // Un peu plus rapide car prévisible
+        
         enemies.push({
+            type: 'classic',
+            color: 'cyan',
+            x: COLS / 2, y: ROWS / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            speed: speed, // On stocke la vitesse de base pour la maintenir constante
+            history: [], maxHistory: 20, angle: 0
+        });
+    }
+
+    // --- Génération des Qix JAUNES (Modernes - Courbes aléatoires) ---
+    for (let i = 0; i < yellowCount; i++) {
+        enemies.push({
+            type: 'modern',
+            color: 'yellow',
             x: COLS / 2, y: ROWS / 2,
             vx: 0, vy: 0,
-            // Ces variables sont OBLIGATOIRES pour le nouveau mouvement :
             targetX: Math.random() * COLS,
             targetY: Math.random() * ROWS,
             changeTimer: 0,
@@ -242,80 +278,93 @@ function update() {
     });
 
 
-    // 2. Mouvement Qix
+    // 2. Mouvement Qix (Deux comportements)
     enemies.forEach(qix => {
-        qix.changeTimer--;
-        if (qix.changeTimer <= 0) {
-            // Cible aléatoire inchangée
-            qix.targetX = Math.random() * (COLS - 2) + 1;
-            qix.targetY = Math.random() * (ROWS - 2) + 1;
+        
+        // --- CAS 1 : QIX JAUNE (Mouvement fluide / Courbes) ---
+        if (qix.type === 'modern') {
+            qix.changeTimer--;
+            if (qix.changeTimer <= 0) {
+                qix.targetX = Math.random() * (COLS - 2) + 1;
+                qix.targetY = Math.random() * (ROWS - 2) + 1;
+                qix.changeTimer = 60 + Math.random() * 120; 
+            }
 
-            // MODIF 1 : Délai plus long (60 à 180 frames = 1s à 3s)
-            // Avant c'était 30-90. Le Qix sera moins "nerveux".
-            qix.changeTimer = 60 + Math.random() * 120;
+            let dx = qix.targetX - qix.x;
+            let dy = qix.targetY - qix.y;
+            let angleToTarget = Math.atan2(dy, dx);
+            let force = 0.02; 
+            qix.vx += Math.cos(angleToTarget) * force;
+            qix.vy += Math.sin(angleToTarget) * force;
+
+            const maxSpeed = 0.6 + (level * 0.05); 
+            let currentSpeed = Math.hypot(qix.vx, qix.vy);
+            if (currentSpeed > maxSpeed) {
+                qix.vx = (qix.vx / currentSpeed) * maxSpeed;
+                qix.vy = (qix.vy / currentSpeed) * maxSpeed;
+            }
+        } 
+        
+        // --- CAS 2 : QIX BLEU (Ligne droite + Rebond aléatoire) ---
+        else if (qix.type === 'classic') {
+            // Pas de changement de direction sauf collision
+            // On s'assure juste que la vitesse reste constante
+            // (Parfois les rebonds peuvent altérer un peu la magnitude)
         }
 
-        // B. Accélération vers la cible (Steering force)
-        // Cela donne des courbes fluides au lieu de lignes droites robotiques
-        let dx = qix.targetX - qix.x;
-        let dy = qix.targetY - qix.y;
-        let angleToTarget = Math.atan2(dy, dx);
-
-        // On ajoute une force de poussée vers la cible
-        let force = 0.05; // Puissance du virage
-        qix.vx += Math.cos(angleToTarget) * force;
-        qix.vy += Math.sin(angleToTarget) * force;
-
-        // C. Limitation de la vitesse (Pour ne pas qu'il parte à la vitesse de la lumière)
-        // On augmente un peu la vitesse max pour rendre le jeu plus nerveux
-        const maxSpeed = 0.6 + (level * 0.05);
-        let currentSpeed = Math.hypot(qix.vx, qix.vy);
-        if (currentSpeed > maxSpeed) {
-            qix.vx = (qix.vx / currentSpeed) * maxSpeed;
-            qix.vy = (qix.vy / currentSpeed) * maxSpeed;
-        }
-
-        // D. Application du mouvement
+        // --- APPLICATION DU MOUVEMENT (Commun) ---
         let nextX = qix.x + qix.vx;
         let nextY = qix.y + qix.vy;
+        let hitWall = false;
 
-        // E. Gestion des rebonds sur les murs (Bords ou Zones Conquises)
         // Vérification X
         let cx = Math.floor(nextX), cy = Math.floor(qix.y);
         if (cx <= 0 || cx >= COLS - 1 || (grid[cy] && grid[cy][cx] === 1)) {
-            qix.vx *= -1; // Rebond simple
-            qix.changeTimer = 0; // Force le changement de cible immédiat si on touche un mur
+            qix.vx *= -1; // Rebond basique
+            hitWall = true;
         } else {
             qix.x = nextX;
         }
 
         // Vérification Y
-        let cny = Math.floor(nextY), cnx = Math.floor(qix.x);
+        let ny = qix.y + qix.vy;
+        let cny = Math.floor(ny), cnx = Math.floor(qix.x);
         if (cny <= 0 || cny >= ROWS - 1 || (grid[cny] && grid[cny][cnx] === 1)) {
-            qix.vy *= -1; // Rebond simple
-            qix.changeTimer = 0; // Force changement de cible
+            qix.vy *= -1; // Rebond basique
+            hitWall = true;
         } else {
-            qix.y = nextY;
+            qix.y = ny;
         }
 
-        // F. Collisions (Game Over)
-        // 1. Collision avec le TRAIT en cours (Mortelle pour le joueur)
+        // --- GESTION DU REBOND SPÉCIFIQUE ---
+        if (hitWall) {
+            if (qix.type === 'modern') {
+                qix.changeTimer = 0; // Le jaune change de cible immédiatement
+            } 
+            else if (qix.type === 'classic') {
+                // Le bleu repart dans une direction aléatoire
+                // On choisit un angle qui pointe vers l'intérieur (grossièrement)
+                // Pour faire simple : on prend un angle random, on l'applique à la vitesse constante
+                let newAngle = Math.random() * Math.PI * 2;
+                qix.vx = Math.cos(newAngle) * qix.speed;
+                qix.vy = Math.sin(newAngle) * qix.speed;
+                
+                // Petite sécurité : si le nouvel angle nous renvoie direct dans le mur, 
+                // la frame suivante le corrigera (ça peut faire un petit frétillement d'une frame, c'est acceptable)
+            }
+        }
+
+        // Collisions avec le joueur (Inchangé)
         let fx = Math.floor(qix.x), fy = Math.floor(qix.y);
-        if (grid[fy] && grid[fy][fx] === 2) {
-            gameOver("Un Qix a brisé votre ligne !");
-        }
-
-        // 2. Collision directe avec les JOUEURS
+        if (grid[fy] && grid[fy][fx] === 2) gameOver("Un Qix a brisé votre ligne !");
+        
         players.forEach(p => {
-            // On augmente la distance de collision car le Qix est visuellement plus gros (rayon ~12px)
-            // 1 unité grille = 5px. Donc une distance de 3.0 = 15px.
             if (Math.hypot(p.x - qix.x, p.y - qix.y) < 3.0) {
-                gameOver(`Le Qix a désintégré le joueur ${p.id} !`);
+                gameOver(`Le Qix ${qix.type === 'classic' ? 'Bleu' : 'Jaune'} vous a eu !`);
             }
         });
 
-
-        // G. Effet visuel (Traînée)
+        // Historique
         qix.history.push({ x: qix.x, y: qix.y, angle: Math.atan2(qix.vy, qix.vx) });
         if (qix.history.length > qix.maxHistory) qix.history.shift();
     });
@@ -577,33 +626,36 @@ function draw() {
         ctx.shadowBlur = 0; // Reset
     });
 
-    // --- DESSIN DU QIX (Grandes bulles néon) ---
+    // --- DESSIN DU QIX ---
     enemies.forEach(qix => {
-        ctx.shadowBlur = 15; ctx.shadowColor = "cyan";
-
-        // Traînée (History)
+        // On utilise la couleur définie dans l'objet (cyan ou yellow)
+        ctx.shadowBlur = 15; ctx.shadowColor = qix.color;
+        
+        // Traînée
         qix.history.forEach((pos, i) => {
-            ctx.globalAlpha = (i / qix.history.length) * 0.5; // Dégradé
-            ctx.fillStyle = "cyan";
+            ctx.globalAlpha = (i / qix.history.length) * 0.5;
+            ctx.fillStyle = qix.color; // <--- COULEUR DYNAMIQUE
             ctx.beginPath();
-            // Traînée plus large
-            ctx.arc(pos.x * CELL_SIZE, pos.y * CELL_SIZE, 6, 0, Math.PI * 2);
+            ctx.arc(pos.x * CELL_SIZE, pos.y * CELL_SIZE, 6, 0, Math.PI * 2); 
             ctx.fill();
         });
         ctx.globalAlpha = 1.0;
 
-        // Tête du Qix (Gros cercle avec contour)
+        // Tête
         ctx.beginPath();
-        let r = 10 + Math.sin(Date.now() / 200) * 2; // Pulsation (10px à 12px de rayon)
+        let r = 10 + Math.sin(Date.now() / 200) * 2;
         ctx.arc(qix.x * CELL_SIZE, qix.y * CELL_SIZE, r, 0, Math.PI * 2);
-
-        ctx.fillStyle = "rgba(0, 255, 255, 0.6)"; // Intérieur semi-transparent
+        
+        // On adapte la couleur semi-transparente
+        if (qix.color === 'cyan') ctx.fillStyle = "rgba(0, 255, 255, 0.6)";
+        else ctx.fillStyle = "rgba(255, 255, 0, 0.6)";
+        
         ctx.fill();
-
-        ctx.strokeStyle = "white"; // Contour blanc solide
+        
+        ctx.strokeStyle = "white";
         ctx.lineWidth = 3;
         ctx.stroke();
-
+        
         ctx.shadowBlur = 0;
     });
 
