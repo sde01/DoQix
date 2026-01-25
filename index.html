@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>JS Qix - Image Reveal</title>
     <style>
         #menu-overlay {
@@ -16,7 +17,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 20;
+            z-index: 80;
         }
 
         #menu-overlay h1 {
@@ -105,6 +106,50 @@
             text-align: center;
             z-index: 10;
         }
+
+        /* Zone tactile qui couvre tout l'écran */
+        #touch-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            /* Au dessus du canvas */
+            touch-action: none;
+            /* Empêche le scroll/zoom */
+            /* background: rgba(255, 0, 0, 0.1); Decommentez pour tester la zone */
+        }
+
+        /* Joystick Visuel */
+        .joystick {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            /* Laisse passer les clics au travers */
+            z-index: 60;
+        }
+
+        #joy-base {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            transform: translate(-50%, -50%);
+            /* Centrage */
+        }
+
+        #joy-stick {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 10px cyan;
+            transform: translate(-50%, -50%);
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 
@@ -119,7 +164,6 @@
     <div id="game-container">
         <div id="game-bg-blurred"></div>
         <canvas id="gameCanvas" width="600" height="400"></canvas>
-
         <div id="menu-overlay">
             <h1>Dorys QIX</h1>
             <button onclick="startGame(1)">1 JOUEUR</button>
@@ -128,6 +172,12 @@
                 P1 : Flèches | P2 : ZQSD
             </p>
         </div>
+        <div id="touch-layer"></div>
+
+        <div id="joy-base" class="joystick hidden"></div>
+        <div id="joy-stick" class="joystick hidden"></div>
+
+
     </div>
 
     <div class="controls">

@@ -31,7 +31,7 @@ let players = [];
 let enemies = [];
 let sparxes = [];
 let level = 1;
-let lives = 3; 
+let lives = 3;
 let isGameOver = false;
 let score = 0;
 let isLevelComplete = false;
@@ -44,9 +44,9 @@ bgCanvas.height = canvas.height;
 function startGame(mode) {
     playerCount = mode;
     gameStarted = true;
-    lives = 3; 
+    lives = 3;
     livesEl.innerText = lives;
-    
+
     // --- MODIFICATION ICI ---
     score = 0; // On remet le score à 0 seulement au tout début du jeu complet
     scoreEl.innerText = "0";
@@ -117,13 +117,13 @@ function initLevel(lvl) {
 
     setLevelImage(level);
 
-//    if (level === 1) {
-//        score = 0;
-//        scoreEl.innerText = "0";
-//    }
+    //    if (level === 1) {
+    //        score = 0;
+    //        scoreEl.innerText = "0";
+    //    }
 
 
-    
+
     // 1. Reset Grille
     grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
     for (let r = 0; r < ROWS; r++) { grid[r][0] = 1; grid[r][COLS - 1] = 1; }
@@ -161,7 +161,7 @@ function initLevel(lvl) {
         // Vitesse constante mais direction aléatoire
         let angle = Math.random() * Math.PI * 2;
         let speed = 0.7 + (level * 0.05); // Un peu plus rapide car prévisible
-        
+
         enemies.push({
             type: 'classic',
             color: 'cyan',
@@ -201,17 +201,17 @@ function initLevel(lvl) {
 
     // --- AJOUT : Initialisation du Buffer ---
     bgCtx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // On attend que l'image soit chargée pour dessiner les bordures initiales dans le buffer
-    if (imageLoaded) updateBuffer(); 
+    if (imageLoaded) updateBuffer();
     else bgImageSharp.onload = () => { imageLoaded = true; updateBuffer(); };
 
-    resetPositions(); 
+    resetPositions();
 }
 
 function updateBuffer() {
     if (!imageLoaded) return;
-    
+
     let srcW = bgImageSharp.width / COLS;
     let srcH = bgImageSharp.height / ROWS;
 
@@ -222,8 +222,8 @@ function updateBuffer() {
         for (let c = 0; c < COLS; c++) {
             if (grid[r][c] === 1) {
                 // On dessine sur bgCtx (le tampon), pas ctx (l'écran)
-                bgCtx.drawImage(bgImageSharp, 
-                    c * srcW, r * srcH, srcW, srcH, 
+                bgCtx.drawImage(bgImageSharp,
+                    c * srcW, r * srcH, srcW, srcH,
                     c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE
                 );
             }
@@ -280,31 +280,31 @@ function update() {
 
     // 2. Mouvement Qix (Deux comportements)
     enemies.forEach(qix => {
-        
+
         // --- CAS 1 : QIX JAUNE (Mouvement fluide / Courbes) ---
         if (qix.type === 'modern') {
             qix.changeTimer--;
             if (qix.changeTimer <= 0) {
                 qix.targetX = Math.random() * (COLS - 2) + 1;
                 qix.targetY = Math.random() * (ROWS - 2) + 1;
-                qix.changeTimer = 60 + Math.random() * 120; 
+                qix.changeTimer = 60 + Math.random() * 120;
             }
 
             let dx = qix.targetX - qix.x;
             let dy = qix.targetY - qix.y;
             let angleToTarget = Math.atan2(dy, dx);
-            let force = 0.02; 
+            let force = 0.02;
             qix.vx += Math.cos(angleToTarget) * force;
             qix.vy += Math.sin(angleToTarget) * force;
 
-            const maxSpeed = 0.6 + (level * 0.05); 
+            const maxSpeed = 0.6 + (level * 0.05);
             let currentSpeed = Math.hypot(qix.vx, qix.vy);
             if (currentSpeed > maxSpeed) {
                 qix.vx = (qix.vx / currentSpeed) * maxSpeed;
                 qix.vy = (qix.vy / currentSpeed) * maxSpeed;
             }
-        } 
-        
+        }
+
         // --- CAS 2 : QIX BLEU (Ligne droite + Rebond aléatoire) ---
         else if (qix.type === 'classic') {
             // Pas de changement de direction sauf collision
@@ -340,7 +340,7 @@ function update() {
         if (hitWall) {
             if (qix.type === 'modern') {
                 qix.changeTimer = 0; // Le jaune change de cible immédiatement
-            } 
+            }
             else if (qix.type === 'classic') {
                 // Le bleu repart dans une direction aléatoire
                 // On choisit un angle qui pointe vers l'intérieur (grossièrement)
@@ -348,7 +348,7 @@ function update() {
                 let newAngle = Math.random() * Math.PI * 2;
                 qix.vx = Math.cos(newAngle) * qix.speed;
                 qix.vy = Math.sin(newAngle) * qix.speed;
-                
+
                 // Petite sécurité : si le nouvel angle nous renvoie direct dans le mur, 
                 // la frame suivante le corrigera (ça peut faire un petit frétillement d'une frame, c'est acceptable)
             }
@@ -357,7 +357,7 @@ function update() {
         // Collisions avec le joueur (Inchangé)
         let fx = Math.floor(qix.x), fy = Math.floor(qix.y);
         if (grid[fy] && grid[fy][fx] === 2) gameOver("Un Qix a brisé votre ligne !");
-        
+
         players.forEach(p => {
             if (Math.hypot(p.x - qix.x, p.y - qix.y) < 3.0) {
                 gameOver(`Le Qix ${qix.type === 'classic' ? 'Bleu' : 'Jaune'} vous a eu !`);
@@ -525,25 +525,25 @@ function findNearestEdge(x, y) {
 
 function gameOver(msg) {
     if (isGameOver) return;
-    
-    lives--; 
+
+    lives--;
     livesEl.innerText = lives;
 
     if (lives > 0) {
         // --- CAS 1 : IL RESTE DES VIES ---
-        isGameOver = true; 
-        
+        isGameOver = true;
+
         setTimeout(() => {
             alert(msg + "\n\nVies restantes : " + lives + "\nLe niveau va recommencer.");
             isGameOver = false;
-            
+
             // --- MODIFICATION ICI ---
             // On relance l'initialisation complète du niveau actuel
             // Cela efface la grille (progression perdue sur ce niveau) 
             // mais garde le score global.
-            initLevel(level); 
+            initLevel(level);
             // ------------------------
-            
+
         }, 100);
 
     } else {
@@ -630,13 +630,13 @@ function draw() {
     enemies.forEach(qix => {
         // On utilise la couleur définie dans l'objet (cyan ou yellow)
         ctx.shadowBlur = 15; ctx.shadowColor = qix.color;
-        
+
         // Traînée
         qix.history.forEach((pos, i) => {
             ctx.globalAlpha = (i / qix.history.length) * 0.5;
             ctx.fillStyle = qix.color; // <--- COULEUR DYNAMIQUE
             ctx.beginPath();
-            ctx.arc(pos.x * CELL_SIZE, pos.y * CELL_SIZE, 6, 0, Math.PI * 2); 
+            ctx.arc(pos.x * CELL_SIZE, pos.y * CELL_SIZE, 6, 0, Math.PI * 2);
             ctx.fill();
         });
         ctx.globalAlpha = 1.0;
@@ -645,17 +645,17 @@ function draw() {
         ctx.beginPath();
         let r = 10 + Math.sin(Date.now() / 200) * 2;
         ctx.arc(qix.x * CELL_SIZE, qix.y * CELL_SIZE, r, 0, Math.PI * 2);
-        
+
         // On adapte la couleur semi-transparente
         if (qix.color === 'cyan') ctx.fillStyle = "rgba(0, 255, 255, 0.6)";
         else ctx.fillStyle = "rgba(255, 255, 0, 0.6)";
-        
+
         ctx.fill();
-        
+
         ctx.strokeStyle = "white";
         ctx.lineWidth = 3;
         ctx.stroke();
-        
+
         ctx.shadowBlur = 0;
     });
 
@@ -707,9 +707,95 @@ window.addEventListener('keydown', e => {
     }
 });
 
+function initTouchControls() {
+    // --- GESTION TACTILE (JOYSTICK FLOTTANT) ---
+
+    const touchLayer = document.getElementById('touch-layer');
+    const joyBase = document.getElementById('joy-base');
+    const joyStick = document.getElementById('joy-stick');
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    // 1. Début du toucher : On pose le joystick
+    touchLayer.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Empêche le comportement par défaut (scroll, zoom)
+        if (!gameStarted || players.length === 0) return;
+
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+
+        // Afficher le visuel du joystick à l'endroit du doigt
+        joyBase.style.left = touchStartX + 'px';
+        joyBase.style.top = touchStartY + 'px';
+        joyStick.style.left = touchStartX + 'px';
+        joyStick.style.top = touchStartY + 'px';
+
+        joyBase.classList.remove('hidden');
+        joyStick.classList.remove('hidden');
+    }, { passive: false });
+
+    // 2. Mouvement du doigt : On calcule la direction
+    touchLayer.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!gameStarted || players.length === 0) return;
+
+        const touch = e.touches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+
+        // Mise à jour visuelle du stick (limité au cercle)
+        const distance = Math.min(50, Math.hypot(deltaX, deltaY));
+        const angle = Math.atan2(deltaY, deltaX);
+
+        const stickX = touchStartX + Math.cos(angle) * distance;
+        const stickY = touchStartY + Math.sin(angle) * distance;
+
+        joyStick.style.left = stickX + 'px';
+        joyStick.style.top = stickY + 'px';
+
+        // --- LOGIQUE DE DIRECTION (QIX est à 4 directions, pas de diagonale) ---
+        // On regarde quelle valeur est la plus grande (X ou Y) pour décider
+        // On ajoute un "seuil" (deadzone) de 10px pour éviter les tremblements
+
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            // Mouvement Horizontal
+            if (Math.abs(deltaX) > 10) {
+                players[0].dx = deltaX > 0 ? 1 : -1;
+                players[0].dy = 0;
+            }
+        } else {
+            // Mouvement Vertical
+            if (Math.abs(deltaY) > 10) {
+                players[0].dx = 0;
+                players[0].dy = deltaY > 0 ? 1 : -1;
+            }
+        }
+
+    }, { passive: false });
+
+    // 3. Fin du toucher : On arrête tout
+    touchLayer.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (!gameStarted || players.length === 0) return;
+
+        // On cache le joystick
+        joyBase.classList.add('hidden');
+        joyStick.classList.add('hidden');
+
+        // On arrête le joueur (Optionnel : commentez ces lignes si vous voulez
+        // que le joueur continue d'avancer comme avec les touches clavier)
+        players[0].dx = 0;
+        players[0].dy = 0;
+
+    }, { passive: false });
+}
+
 function loop() {
     update();
     draw();
     requestAnimationFrame(loop);
 }
+initTouchControls();
 loop();
