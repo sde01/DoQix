@@ -206,7 +206,7 @@ function initLevel(lvl) {
     if (imageLoaded) updateBuffer();
     else bgImageSharp.onload = () => { imageLoaded = true; updateBuffer(); };
 
-    resetPositions();
+    //resetPositions();
 }
 
 function updateBuffer() {
@@ -597,15 +597,18 @@ function draw() {
     ctx.drawImage(bgCanvas, 0, 0);
 
     // On dessine juste les TRAITS ROUGES (en cours) par dessus, car eux bougent
-    // Ça reste une boucle, mais elle est très légère car il y a peu de "2"
+    ctx.save();
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = "red";
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             if (grid[r][c] === 2) {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                ctx.fillStyle = '#ff3333'; // Rouge plus vif
+                ctx.fillRect(c * CELL_SIZE - 0.5, r * CELL_SIZE - 0.5, CELL_SIZE + 1, CELL_SIZE + 1); // Légèrement plus large pour visibilité
             }
         }
     }
+    ctx.restore();
 
     // --- DESSIN DES JOUEURS (Carrés avec bordure blanche) ---
     players.forEach(p => {
@@ -797,5 +800,17 @@ function loop() {
     draw();
     requestAnimationFrame(loop);
 }
+
+function resizeGame() {
+    const container = document.getElementById('game-container');
+    // On synchronise la taille de dessin du canvas avec sa taille affichée
+    canvas.width = 600; // Votre base de calcul (120 colonnes * 5)
+    canvas.height = 400; // Votre base de calcul (80 lignes * 5)
+}
+
+// Appelez-le au chargement
+window.addEventListener('resize', resizeGame);
+resizeGame();
+
 initTouchControls();
 loop();

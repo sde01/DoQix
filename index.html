@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
     <title>JS Qix - Image Reveal</title>
     <style>
         #menu-overlay {
@@ -43,15 +43,6 @@
             color: black;
         }
 
-        body {
-            background: #111;
-            color: #00ff00;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: 'Courier New', Courier, monospace;
-        }
-
         #ui {
             margin: 20px;
             font-size: 24px;
@@ -62,16 +53,103 @@
             z-index: 10;
         }
 
-        /* --- NOUVEAU : Conteneur de jeu --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            /* Empêche le rebond élastique sur mobile */
+        }
+
         #game-container {
             position: relative;
-            width: 600px;
-            height: 400px;
-            border: 4px solid #444;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-            background: #000;
-            overflow: hidden;
-            /* Important pour le flou qui dépasse */
+            width: 95vw;
+            max-width: 800px;
+            max-height: 70vh;
+            /* Limite la hauteur sur mobile */
+            aspect-ratio: 120 / 80;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background-color: transparent;
+            /* Permet de voir le flou derrière */
+            border: 2px solid #444;
+        }
+
+        /* UI Compacte pour Mobile */
+        #ui {
+            width: 95vw;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.8);
+            font-size: 14px;
+            /* Plus petit pour mobile */
+            box-sizing: border-box;
+            z-index: 100;
+        }
+
+        /* Optimisation spécifique Portrait */
+        @media (orientation: portrait) {
+            #ui {
+                font-size: 12px;
+                flex-wrap: wrap;
+                justify-content: space-around;
+            }
+
+            #ui div {
+                margin: 2px 5px;
+            }
+
+            #game-container {
+                width: 98vw;
+                max-height: 50vh;
+                /* Plus d'espace pour le joystick en portrait */
+            }
+        }
+
+        /* Optimisation spécifique Paysage */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #ui {
+                position: absolute;
+                top: 5px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: auto;
+                background: rgba(0, 0, 0, 0.5);
+                border-radius: 20px;
+                padding: 2px 15px;
+                font-size: 12px;
+                gap: 10px;
+            }
+
+            #game-container {
+                height: 85vh;
+                width: auto;
+                max-width: none;
+            }
+
+            .controls {
+                display: none;
+                /* Cache les instructions pour gagner de la place */
+            }
         }
 
         /* --- Modifiez la règle existante --- */
@@ -81,23 +159,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            /* PLUS D'URL ICI - On laisse juste les propriétés de style */
             background-size: cover;
             background-position: center;
-            filter: blur(10px) brightness(0.5);
-            z-index: 0;
+            filter: blur(4px) brightness(0.6);
+            z-index: 1;
+            /* Juste au-dessus du fond, mais sous le canvas */
             transition: background-image 0.5s ease-in-out;
-            /* Petit bonus : transition douce */
         }
 
-        /* Le canvas passe devant et devient transparent */
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-            /* background: #000;  <- ON SUPPRIME LE FOND NOIR ICI */
-        }
 
         .controls {
             color: #666;
@@ -155,10 +224,12 @@
 
 <body>
     <div id="ui">
-        <div style="font-weight: bold;">Vies : <span id="livesVal">3</span></div>
-        <div>Niveau : <span id="level">1</span></div>
-        <div>Score : <span id="scoreVal">0</span></div>
-        <div>Conquis : <span id="percent">0</span>%</div>
+        <div>Niv: <span id="level">1</span></div>
+        <div id="lives-container" style="color: #ff3333; font-weight: bold;">
+            Vies: <span id="livesVal">3</span>
+        </div>
+        <div>Score: <span id="scoreVal">0</span></div>
+        <div><span id="percent">0</span>%</div>
     </div>
 
     <div id="game-container">
