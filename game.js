@@ -4,6 +4,7 @@ const percentEl = document.getElementById('percent');
 const levelEl = document.getElementById('level');
 const scoreEl = document.getElementById('scoreVal');
 const livesEl = document.getElementById('livesVal'); // <--- NOUVEAU
+const speedEl = document.getElementById('qix-speed'); // <--- NOUVEAU
 
 
 const ROWS = 80;
@@ -139,52 +140,61 @@ function initLevel(lvl) {
     // 4. Création Qix (Mixte Bleu / Jaune)
     enemies = [];
 
-    // Calcul du nombre de Qix selon votre règle
-    let yellowCount = 0;
-    let blueCount = 0;
+    // --- NOUVELLE LOGIQUE DE PROGRESSION ---
+    // Les joueurs se plaignent que le Qix est trop rapide.
+    // 3 vitesses : slow, medium, fast.
+    // Niv 1: 1 Qix slow, Niv 2: 1 Qix medium, Niv 3: 1 Qix fast.
+    // Niv 4: 2 Qix slow, Niv 5: 2 Qix medium, Niv 6: 2 Qix fast.
+    // etc.
 
-    if (level < 3) {
-        // Niveau 1 et 2 : Que des bleus (1 au niv 1, 2 au niv 2)
-        blueCount = level;
-    } else {
-        // À partir du niveau 3 : on alterne
-        // Niv 3 (base) : 1 Bleu, 1 Jaune
-        // Niv 4 : +1 Bleu -> 2 Bleu, 1 Jaune
-        // Niv 5 : +1 Jaune -> 2 Bleu, 2 Jaune
-        let progress = level - 2; // 1 au niv 3, 2 au niv 4...
-        yellowCount = Math.ceil(progress / 2);
-        blueCount = 1 + Math.floor(progress / 2);
-    }
+    const numEnemies = Math.ceil(level / 3);
+    const speedPhase = (level - 1) % 3; // 0: slow, 1: medium, 2: fast
 
-    // --- Génération des Qix BLEUS (Classiques - Lignes droites) ---
-    for (let i = 0; i < blueCount; i++) {
-        // Vitesse constante mais direction aléatoire
-        let angle = Math.random() * Math.PI * 2;
-        let speed = 0.7 + (level * 0.05); // Un peu plus rapide car prévisible
+    // On définit les multiplicateurs de vitesse
+    const speeds = {
+        0: 0.3, // slow
+        1: 0.6, // medium
+        2: 1.0  // fast (vitesse d'origine approx)
+    };
 
-        enemies.push({
-            type: 'classic',
-            color: 'cyan',
-            x: COLS / 2, y: ROWS / 2,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            speed: speed, // On stocke la vitesse de base pour la maintenir constante
-            history: [], maxHistory: 20, angle: 0
-        });
-    }
+    const speedMult = speeds[speedPhase];
 
-    // --- Génération des Qix JAUNES (Modernes - Courbes aléatoires) ---
-    for (let i = 0; i < yellowCount; i++) {
-        enemies.push({
-            type: 'modern',
-            color: 'yellow',
-            x: COLS / 2, y: ROWS / 2,
-            vx: 0, vy: 0,
-            targetX: Math.random() * COLS,
-            targetY: Math.random() * ROWS,
-            changeTimer: 0,
-            history: [], maxHistory: 20, angle: 0
-        });
+    // Mise à jour de l'UI
+    const speedLabels = { 0: 'Lent', 1: 'Moyen', 2: 'Rapide' };
+    if (speedEl) speedEl.innerText = speedLabels[speedPhase];
+
+    for (let i = 0; i < numEnemies; i++) {
+        // Alternance entre classic (bleu) et modern (jaune)
+        const type = (i % 2 === 0) ? 'classic' : 'modern';
+        const color = (type === 'classic') ? 'cyan' : 'yellow';
+
+        if (type === 'classic') {
+            let angle = Math.random() * Math.PI * 2;
+            let baseSpeed = 0.7 + (level * 0.05);
+            let actualSpeed = baseSpeed * speedMult;
+
+            enemies.push({
+                type: 'classic',
+                color: color,
+                x: COLS / 2, y: ROWS / 2,
+                vx: Math.cos(angle) * actualSpeed,
+                vy: Math.sin(angle) * actualSpeed,
+                speed: actualSpeed,
+                history: [], maxHistory: 20, angle: 0
+            });
+        } else {
+            enemies.push({
+                type: 'modern',
+                color: color,
+                x: COLS / 2, y: ROWS / 2,
+                vx: 0, vy: 0,
+                targetX: Math.random() * COLS,
+                targetY: Math.random() * ROWS,
+                changeTimer: 0,
+                history: [], maxHistory: 20, angle: 0,
+                speedMult: speedMult // On stocke le multiplicateur pour l'update
+            });
+        }
     }
 
     // 4. Création Sparxes
@@ -297,7 +307,8 @@ function update() {
             qix.vx += Math.cos(angleToTarget) * force;
             qix.vy += Math.sin(angleToTarget) * force;
 
-            const maxSpeed = 0.6 + (level * 0.05);
+            const baseMaxSpeed = 0.6 + (level * 0.05);
+            const maxSpeed = baseMaxSpeed * (qix.speedMult || 1.0);
             let currentSpeed = Math.hypot(qix.vx, qix.vy);
             if (currentSpeed > maxSpeed) {
                 qix.vx = (qix.vx / currentSpeed) * maxSpeed;
